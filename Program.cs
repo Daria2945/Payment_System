@@ -42,7 +42,7 @@ namespace Payment_System
 
     public interface IHashSystem
     {
-        byte[] GetHashForValue(string value);
+        string GetHashForValue(int value);
     }
 
     public class PaymentSystem1 : IPaymentSystem, IHashSystem
@@ -53,15 +53,15 @@ namespace Payment_System
         private readonly string _hashText = "hash=";
         private readonly char _ampersand = '&';
 
-        public byte[] GetHashForValue(string value) =>
-            MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value));
+        public string GetHashForValue(int value) =>
+            Convert.ToBase64String(MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value.ToString())));
 
         public string GetPayingLink(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            var hashId = GetHashForValue(order.Id.ToString());
+            var hashId = GetHashForValue(order.Id);
 
             return $"{_urlLinkStart}{_amountText}{order.Amount}{_currencyText}{_ampersand}{_hashText}{hashId}";
         }
@@ -72,15 +72,15 @@ namespace Payment_System
         private readonly string _urlLinkStart = "order.system2.ru/pay?";
         private readonly string _hashText = "hash=";
 
-        public byte[] GetHashForValue(string value) =>
-            MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value));
+        public string GetHashForValue(int value) =>
+            Convert.ToBase64String(MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value.ToString())));
 
         public string GetPayingLink(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            var hashId = GetHashForValue(order.Id.ToString());
+            var hashId = GetHashForValue(order.Id);
 
             return $"{_urlLinkStart}{_hashText}{hashId} {order.Amount}";
         }
@@ -95,15 +95,15 @@ namespace Payment_System
         private readonly string _secretKeyToSystem = "secret_key";
         private readonly char _ampersand = '&';
 
-        public byte[] GetHashForValue(string value) =>
-            SHA1.Create().ComputeHash(Encoding.ASCII.GetBytes(value));
+        public string GetHashForValue(int value) =>
+            Convert.ToBase64String(SHA1.Create().ComputeHash(Encoding.ASCII.GetBytes(value.ToString())));
 
         public string GetPayingLink(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            var hashAmount = GetHashForValue(order.Amount.ToString());
+            var hashAmount = GetHashForValue(order.Amount);
 
             return $"{_urlLinkStart}{_amountText}{order.Amount}{_ampersand}{_currencyText}{_ampersand}{_hashText}{hashAmount} {order.Id} {_secretKeyToSystem}";
         }
