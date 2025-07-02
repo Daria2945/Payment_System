@@ -12,9 +12,12 @@ namespace Payment_System
             int orderAmount = 12000;
             Order newOrder = new Order(orderId, orderAmount);
 
-            PaymentSystem1 paymentSystem1 = new PaymentSystem1();
-            PaymentSystem2 paymentSystem2 = new PaymentSystem2();
-            PaymentSystem3 paymentSystem3 = new PaymentSystem3();
+            MD5HashSystem md5HashSystem = new MD5HashSystem();
+            SHA1HashSystem sha1HashSystem = new SHA1HashSystem();
+
+            PaymentSystem1 paymentSystem1 = new PaymentSystem1(md5HashSystem);
+            PaymentSystem2 paymentSystem2 = new PaymentSystem2(md5HashSystem);
+            PaymentSystem3 paymentSystem3 = new PaymentSystem3(sha1HashSystem);
 
             Console.WriteLine(paymentSystem1.GetPayingLink(newOrder));
             Console.WriteLine(paymentSystem2.GetPayingLink(newOrder));
@@ -42,52 +45,74 @@ namespace Payment_System
 
     public interface IHashSystem
     {
-        string GetHashForValue(int value);
+        string GetHashForValue(string value);
     }
 
-    public class PaymentSystem1 : IPaymentSystem, IHashSystem
+    public class MD5HashSystem : IHashSystem
     {
+        public string GetHashForValue(string value) =>
+            Convert.ToBase64String(MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value)));
+    }
+
+    public class SHA1HashSystem : IHashSystem
+    {
+        public string GetHashForValue(string value) =>
+            Convert.ToBase64String(SHA1.Create().ComputeHash(Encoding.ASCII.GetBytes(value)));
+    }
+
+    public class PaymentSystem1 : IPaymentSystem
+    {
+        private readonly IHashSystem _hashSystem;
+
         private readonly string _urlLinkStart = "pay.system1.ru/order?";
         private readonly string _amountText = "amount=";
         private readonly string _currencyText = "RUB";
         private readonly string _hashText = "hash=";
         private readonly char _ampersand = '&';
 
-        public string GetHashForValue(int value) =>
-            Convert.ToBase64String(MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value.ToString())));
+        public PaymentSystem1(IHashSystem hashSystem)
+        {
+            _hashSystem = hashSystem ?? throw new ArgumentNullException(nameof(hashSystem));
+        }
 
         public string GetPayingLink(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            var hashId = GetHashForValue(order.Id);
+            var hashValue = _hashSystem.GetHashForValue(order.Id.ToString());
 
-            return $"{_urlLinkStart}{_amountText}{order.Amount}{_currencyText}{_ampersand}{_hashText}{hashId}";
+            return $"{_urlLinkStart}{_amountText}{order.Amount}{_currencyText}{_ampersand}{_hashText}{hashValue}";
         }
     }
 
-    public class PaymentSystem2 : IPaymentSystem, IHashSystem
+    public class PaymentSystem2 : IPaymentSystem
     {
+        private readonly IHashSystem _hashSystem;
+
         private readonly string _urlLinkStart = "order.system2.ru/pay?";
         private readonly string _hashText = "hash=";
 
-        public string GetHashForValue(int value) =>
-            Convert.ToBase64String(MD5.Create().ComputeHash(Encoding.ASCII.GetBytes(value.ToString())));
+        public PaymentSystem2(IHashSystem hashSystem)
+        {
+            _hashSystem = hashSystem ?? throw new ArgumentNullException(nameof(hashSystem));
+        }
 
         public string GetPayingLink(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            var hashId = GetHashForValue(order.Id);
+            var hashValue = _hashSystem.GetHashForValue(order.Id.ToString() + order.Amount);
 
-            return $"{_urlLinkStart}{_hashText}{hashId} {order.Amount}";
+            return $"{_urlLinkStart}{_hashText}{hashValue}";
         }
     }
 
-    public class PaymentSystem3 : IPaymentSystem, IHashSystem
+    public class PaymentSystem3 : IPaymentSystem
     {
+        private readonly IHashSystem _hashSystem;
+
         private readonly string _urlLinkStart = "system3.com/pay?";
         private readonly string _amountText = "amount=";
         private readonly string _currencyText = "currency=RUB";
@@ -95,17 +120,19 @@ namespace Payment_System
         private readonly string _secretKeyToSystem = "secret_key";
         private readonly char _ampersand = '&';
 
-        public string GetHashForValue(int value) =>
-            Convert.ToBase64String(SHA1.Create().ComputeHash(Encoding.ASCII.GetBytes(value.ToString())));
+        public PaymentSystem3(IHashSystem hashSystem)
+        {
+            _hashSystem = hashSystem ?? throw new ArgumentNullException(nameof(hashSystem));
+        }
 
         public string GetPayingLink(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            var hashAmount = GetHashForValue(order.Amount);
+            var hashValue = _hashSystem.GetHashForValue(order.Amount.ToString() + order.Id + _secretKeyToSystem);
 
-            return $"{_urlLinkStart}{_amountText}{order.Amount}{_ampersand}{_currencyText}{_ampersand}{_hashText}{hashAmount} {order.Id} {_secretKeyToSystem}";
+            return $"{_urlLinkStart}{_amountText}{order.Amount}{_ampersand}{_currencyText}{_ampersand}{_hashText}{hashValue}";
         }
     }
 }
